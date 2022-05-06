@@ -367,7 +367,8 @@ def x_y_plot(figure_path,
                  marker=decision_maker.marker, color=decision_maker.color,
                  markersize=12, linewidth=1,
                  markeredgecolor=PLOTTING_EDGE_COLOR,
-                 markeredgewidth=PLOTTING_EDGE_WIDTH)
+                 markeredgewidth=PLOTTING_EDGE_WIDTH,
+                 label=decision_maker.plotting_name)
 
     if analysis.height_line_for_chance is not None:
         axes = plt.gca()
@@ -375,6 +376,7 @@ def x_y_plot(figure_path,
         y_vals = analysis.height_line_for_chance + 0 * x_vals
         plt.plot(x_vals, y_vals, ':', color="grey")
 
+    plt.legend()
     plt.savefig(figure_path)
     plt.close()
 
