@@ -26,7 +26,7 @@ DECISION_MAKERS = {
     #     color=rgb(65, 90, 140), marker="o", df=df,
     #     plotting_name="SIML CLIP"),
     'siml_clip_pruned': lambda df: DecisionMaker(
-        name_pattern="siml_clip",
+        name_pattern="siml_clip_pruned",
         color=rgb(65, 90, 140), marker="o", df=df,
         plotting_name="SIML CLIP Pruned"),
 
