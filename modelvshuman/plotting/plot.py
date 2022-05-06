@@ -86,6 +86,7 @@ def plot(plot_types,
             current_dataset_names = dataset_names
 
         datasets = get_experiments(current_dataset_names)
+        print(datasets)
         plot_fn_kwargs = dict(
             datasets=datasets,
             decision_maker_fun=plotting_definition,

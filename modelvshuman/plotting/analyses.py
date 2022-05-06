@@ -249,6 +249,7 @@ class XYAnalysis(Analysis):
                     print(f'[{self.__class__.__name__}] '
                           f'WARNING: skipping supdat since length=0, '
                           f'for decision_maker={d} and data_condition={c}.')
+                    continue
                 r = self.analysis(subdat)
                 assert len(r) == 1, \
                     "Analysis unexpectedly returned more than one scalar."
