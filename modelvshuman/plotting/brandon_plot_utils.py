@@ -21,31 +21,31 @@ COLORS = {
 }
 DECISION_MAKERS = {
     # CLIP
-    'siml_clip': lambda df: DecisionMaker(
-        name_pattern="siml_clip",
-        color=rgb(65, 90, 140), marker="o", df=df,
-        plotting_name="SIML CLIP"),
+    # 'siml_clip': lambda df: DecisionMaker(
+    #     name_pattern="siml_clip",
+    #     color=rgb(65, 90, 140), marker="o", df=df,
+    #     plotting_name="SIML CLIP"),
     'siml_clip_pruned': lambda df: DecisionMaker(
         name_pattern="siml_clip",
         color=rgb(65, 90, 140), marker="o", df=df,
         plotting_name="SIML CLIP Pruned"),
 
-    'clip_base': lambda df: DecisionMaker(
-        name_pattern="clip_base",
-        color=grey2, marker=SHAPES['circle'], df=df,
-        plotting_name="CLIP ViT-B/16"),
-    'clip_large': lambda df: DecisionMaker(
-        name_pattern="clip_large",
-        color=grey2, marker=SHAPES['triangle_up'], df=df,
-        plotting_name="CLIP ViT-L/14"),
-    'clip_large_336': lambda df: DecisionMaker(
-        name_pattern="clip_large_336",
-        color=gold, marker=SHAPES['star'], df=df,
-        plotting_name="CLIP ViT-L/14@336px"),
-    'clipRN50': lambda df: DecisionMaker(
-        name_pattern="clipRN50",
-        color=grey1, marker=".", df=df,
-        plotting_name="CLIP RN50"),
+    # 'clip_base': lambda df: DecisionMaker(
+    #     name_pattern="clip_base",
+    #     color=grey2, marker=SHAPES['circle'], df=df,
+    #     plotting_name="CLIP ViT-B/16"),
+    # 'clip_large': lambda df: DecisionMaker(
+    #     name_pattern="clip_large",
+    #     color=grey2, marker=SHAPES['triangle_up'], df=df,
+    #     plotting_name="CLIP ViT-L/14"),
+    # 'clip_large_336': lambda df: DecisionMaker(
+    #     name_pattern="clip_large_336",
+    #     color=gold, marker=SHAPES['star'], df=df,
+    #     plotting_name="CLIP ViT-L/14@336px"),
+    # 'clipRN50': lambda df: DecisionMaker(
+    #     name_pattern="clipRN50",
+    #     color=grey1, marker=".", df=df,
+    #     plotting_name="CLIP RN50"),
     # # ViT
     # 'vit_small_patch16_224': lambda df: DecisionMaker(
     #     name_pattern="vit_small_patch16_224",
