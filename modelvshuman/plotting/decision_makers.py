@@ -49,6 +49,7 @@ class DecisionMaker:
             print("The following model(s) were not found: "+', '.join(self.name_pattern))
             print("List of possible models in this dataset:")
             print(self.df.subj.unique())
+            self.ID = None
         else:
             self.ID = self._get_ID()
         self.df = None # no longer needed
