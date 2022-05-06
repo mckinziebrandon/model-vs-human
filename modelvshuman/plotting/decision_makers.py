@@ -74,16 +74,13 @@ class DecisionMaker:
 
 def get_individual_decision_makers(decision_maker_list):
     """Return list of individual decision makers."""
-
     individual_dms = []
     for dm in decision_maker_list:
         individual_dms += dm.decision_makers
-    
     return individual_dms
 
 
 def get_human_and_model_decision_makers(decision_maker_list):
-
     individual_dms = get_individual_decision_makers(decision_maker_list)
     humans = []
     models = []

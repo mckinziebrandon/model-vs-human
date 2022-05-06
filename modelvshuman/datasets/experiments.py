@@ -75,10 +75,10 @@ uniform_noise_experiment = Experiment(data_conditions=["0.0", "0.03", "0.05", "0
 @dataclass
 class DatasetExperiments:
     name: str
-    experiments: [Experiment]
+    experiments: List[Experiment]
 
 
-def get_experiments(dataset_names):
+def get_experiments(dataset_names: List[str]) -> List[DatasetExperiments]:
     datasets = []
     for name in dataset_names:
         name_for_experiment = name.replace("-", "_")

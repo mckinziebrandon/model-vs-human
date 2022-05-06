@@ -2,6 +2,13 @@ import pandas as pd
 import os
 
 from .. import constants as c
+from typing import List, Union, Dict, Any, Optional, TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from ..datasets.experiments import (
+        DatasetExperiments,
+    )
+    from modelvshuman.plotting.decision_makers import DecisionMaker
 
 
 def get_short_imagename(imagename):
@@ -33,6 +40,7 @@ def read_data(path):
 
 
 def read_all_csv_files_from_directory(dir_path):
+    print(f'Reading all csv files from directory: {dir_path}')
 
     assert os.path.exists(dir_path)
     assert os.path.isdir(dir_path)
@@ -46,7 +54,7 @@ def read_all_csv_files_from_directory(dir_path):
     return df
 
 
-def get_experimental_data(dataset, print_name=False):
+def get_experimental_data(dataset: 'DatasetExperiments', print_name=False) -> pd.DataFrame:
     """Read all available data for an experiment."""
 
     if print_name:
@@ -59,7 +67,7 @@ def get_experimental_data(dataset, print_name=False):
 
     for experiment in dataset.experiments:
         if not set(experiment.data_conditions).issubset(set(df.condition.unique())):
-            print(set(e.data_conditions))
+            print(set(experiment.data_conditions))
             print(set(df.condition.unique()))
             raise ValueError("Condition mismatch")
 

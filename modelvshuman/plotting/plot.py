@@ -17,73 +17,67 @@ import seaborn as sns
 from matplotlib.colors import ListedColormap
 from matplotlib.ticker import FormatStrFormatter
 from tqdm import tqdm
+from typing import List, Union, Dict, Any, Optional, TYPE_CHECKING, Callable
 
 from . import analyses as a
 from . import decision_makers as dm
 from .colors import rgb
 from .. import constants as consts
-from ..datasets.experiments import get_experiments
+from ..datasets.experiments import (
+    get_experiments,
+)
+
 from ..helper import plotting_helper as ph
-from ..utils import load_dataset
+from .plot_utils import (
+    get_dataset_names,
+    get_permutations,
+    exclude_conditions,
+    log,
+    get_raw_matrix,
+    get_mean_over_datasets,
+    PLOTTING_EDGE_COLOR,
+    PLOTTING_EDGE_WIDTH,
+    METRICS,
+    EXCLUDE,
+)
+
+if TYPE_CHECKING:
+    from ..datasets.experiments import (
+        DatasetExperiments,
+        Experiment,
+    )
+    from .analyses import (
+        Analysis,
+    )
+    from modelvshuman.plotting.decision_makers import DecisionMaker
 
 logger = logging.getLogger(__name__)
 
-# global default boundary settings for thin gray transparent
-# boundaries to avoid not being able to see the difference
-# between two partially overlapping datapoints of the same color:
-PLOTTING_EDGE_COLOR = (0.3, 0.3, 0.3, 0.3)
-PLOTTING_EDGE_WIDTH = 0.02
+# TODO: move functionality into fn kwargs instead of as a global var like this...
+PLT_SHOW = True
 
-METRICS = {"OOD accuracy": (a.SixteenClassAccuracy(), "16-class-accuracy"),
-           "accuracy difference": (a.SixteenClassAccuracyDifference(),
-                                   "16-class-accuracy-difference"),
-           "observed consistency": (a.ErrorConsistency(), "observed-consistency"),
-           "error consistency": (a.ErrorConsistency(), "error-consistency")}
-
-# exclusion criteria:
-# - not OOD: control condition without manipulation (e.g. 100% contrast)
-# - mean human accuracy < 0.2 (error consistency etc. not meaningful)
-EXCLUDE_CONDITIONS = {
-    "colour": ["cr"],
-    "contrast": ["c100", "c03", "c01"],
-    "high-pass": ["inf", "0.55", "0.45", "0.4"],
-    "low-pass": ["0", "15", "40"],
-    "phase-scrambling": ["0", "150", "180"],
-    "power-equalisation": ["0"],
-    "false-colour": ["True"],
-    "rotation": ["0"],
-    "eidolonI": ["1-10-10", "64-10-10", "128-10-10"],
-    "eidolonII": ["1-3-10", "32-3-10", "64-3-10", "128-3-10"],
-    "eidolonIII": ["1-0-10", "16-0-10", "32-0-10", "64-0-10", "128-0-10"],
-    "uniform-noise": ["0.0", "0.6", "0.9"]
-}
-
-EXCLUDE = True
-
-
-##################################################################
-# Main plot function to be called by user
-##################################################################
 
 def plot(plot_types,
          plotting_definition,
          dataset_names=None,
-         figure_directory_name="example-figures",
+         out_dir: str = consts.FIGURE_DIR,
          crop_PDFs=True,
          *args, **kwargs):
     for plot_type in plot_types:
-        assert plot_type in consts.PLOT_TYPE_TO_DATASET_MAPPING.keys(), "please select plot_types from: " + str(
-            consts.PLOT_TYPE_TO_DATASET_MAPPING.keys())
+        assert plot_type in consts.PLOT_TYPE_TO_DATASET_MAPPING.keys(), \
+            f"please select plot_types from: {consts.PLOT_TYPE_TO_DATASET_MAPPING.keys()}"
         if dataset_names is not None:
             for d_name in dataset_names:
-                assert d_name in consts.PLOT_TYPE_TO_DATASET_MAPPING[plot_type], f"plot_type '{plot_type}' is not available for dataset '{d_name}'. The following datasets can be plotted for this plot_type: {consts.PLOT_TYPE_TO_DATASET_MAPPING[plot_type]}"
+                assert d_name in consts.PLOT_TYPE_TO_DATASET_MAPPING[plot_type], \
+                    f"plot_type '{plot_type}' is not available for dataset '{d_name}'. " \
+                    f"The following datasets can be plotted for this plot_type: " \
+                    f"{consts.PLOT_TYPE_TO_DATASET_MAPPING[plot_type]}"
 
+    if not os.path.exists(out_dir):
+        print(f'Creating out_dir={out_dir}')
+        os.makedirs(out_dir)
 
-    result_dir = os.path.join(consts.FIGURE_DIR, figure_directory_name)
-    if not os.path.exists(result_dir):
-        os.makedirs(result_dir)
-
-    crop_dirs = [result_dir]
+    crop_dirs = [out_dir]
 
     for plot_type in plot_types:
         if dataset_names is None:
@@ -92,54 +86,36 @@ def plot(plot_types,
             current_dataset_names = dataset_names
 
         datasets = get_experiments(current_dataset_names)
+        plot_fn_kwargs = dict(
+            datasets=datasets,
+            decision_maker_fun=plotting_definition,
+            out_dir=out_dir)
 
         if plot_type == "confusion-matrix":
-            confusion_matrices_dir = os.path.join(result_dir, "confusion-matrices/")
+            confusion_matrices_dir = os.path.join(out_dir, "confusion-matrices/")
             if not os.path.exists(confusion_matrices_dir):
                 os.makedirs(confusion_matrices_dir)
-            plot_confusion_matrix(datasets=datasets,
-                                  decision_maker_fun=plotting_definition,
-                                  result_dir=confusion_matrices_dir)
+            plot_confusion_matrix(
+                datasets=datasets,
+                decision_maker_fun=plotting_definition,
+                out_dir=confusion_matrices_dir)
             crop_dirs.append(confusion_matrices_dir)
 
         elif plot_type == "accuracy":
-            plot_accuracy(datasets=datasets,
-                          decision_maker_fun=plotting_definition,
-                          result_dir=result_dir)
-
+            plot_accuracy(**plot_fn_kwargs)
         elif plot_type == "entropy":
-            plot_entropy(datasets=datasets,
-                         decision_maker_fun=plotting_definition,
-                         result_dir=result_dir)
-
+            plot_entropy(**plot_fn_kwargs)
         elif plot_type == "shape-bias":
-            plot_shape_bias_matrixplot(datasets=datasets,
-                                       decision_maker_fun=plotting_definition,
-                                       result_dir=result_dir)
-            plot_shape_bias_boxplot(datasets=datasets,
-                                    decision_maker_fun=plotting_definition,
-                                    result_dir=result_dir)
-
+            plot_shape_bias_matrixplot(**plot_fn_kwargs)
+            plot_shape_bias_boxplot(**plot_fn_kwargs)
         elif plot_type == "error-consistency":
-            plot_error_consistency(datasets=datasets,
-                                   decision_maker_fun=plotting_definition,
-                                   result_dir=result_dir)
-
+            plot_error_consistency(**plot_fn_kwargs)
         elif plot_type == "benchmark-barplot":
-            plot_benchmark_barplot(datasets=datasets,
-                                   decision_maker_fun=plotting_definition,
-                                   result_dir=result_dir)
-
+            plot_benchmark_barplot(**plot_fn_kwargs)
         elif plot_type == "scatterplot":
-            plot_scatterplot(datasets=datasets,
-                             decision_maker_fun=plotting_definition,
-                             result_dir=result_dir)
-
+            plot_scatterplot(**plot_fn_kwargs)
         elif plot_type == "error-consistency-lineplot":
-            plot_error_consistency_lineplot(datasets=datasets,
-                                            decision_maker_fun=plotting_definition,
-                                            result_dir=result_dir)
-
+            plot_error_consistency_lineplot(**plot_fn_kwargs)
         else:
             raise NotImplementedError("unknown plot_type: " + plot_type)
 
@@ -148,203 +124,15 @@ def plot(plot_types,
             ph.crop_pdfs_in_directory(d)
 
 
-##################################################################
-# Helper methods
-##################################################################
-
-
-def get_datasets(dataset_names, *args, **kwargs):
-    dataset_list = []
-    for dataset in dataset_names:
-        dataset = load_dataset(dataset, *args, **kwargs)
-        dataset_list.extend(dataset) if isinstance(dataset, list) else dataset_list.append(dataset)
-    return dataset_list
-
-
-def get_dataset_names(plot_type):
-    """Given plot_type, return suitable dataset(s).
-
-    In this regard, 'suitable' means:
-    - valid plot_type <-> dataset combination
-    - data is available
-    """
-
-    dataset_names = []
-    dataset_candidates = consts.PLOT_TYPE_TO_DATASET_MAPPING[plot_type]
-
-    for candidate in dataset_candidates:
-        if os.path.exists(pjoin(consts.RAW_DATA_DIR, candidate)):
-            dataset_names.append(candidate)
-
-    if len(dataset_names) == 0:
-        raise ValueError("No data found for the specified plot_types.")
-
-    return dataset_names
-
-
-def get_permutations(elements):
-    """Return permutation of elements.
-
-    Return value: list of tuples, where tuples are
-    unique combinations of elements
-    """
-
-    permutations = []
-    for i, elem1 in enumerate(elements):
-        for j, elem2 in enumerate(elements):
-            if i < j:
-                permutations.append((elem1, elem2))
-    return permutations
-
-
-def exclude_conditions(dataset):
-    dataset = copy.deepcopy(dataset)
-    if len(dataset.experiments) > 0:
-        assert dataset.name in EXCLUDE_CONDITIONS.keys()
-        for c in EXCLUDE_CONDITIONS[dataset.name]:
-            assert len(dataset.experiments) == 1
-            assert c in dataset.experiments[0].data_conditions, f"{c} not found for {dataset.name}"
-            idx = dataset.experiments[0].data_conditions.index(c)
-            dataset.experiments[0].data_conditions.remove(c)
-            del dataset.experiments[0].plotting_conditions[idx]
-            #print(f"Dataset {dataset.name}: removing condition {c}")
-    return dataset
-
-
-def log(plot_type, dataset_name):
-    """Print logging info for plotting to console"""
-
-    logging_info = f"Plotting {plot_type} for dataset {dataset_name}"
-    logger.info(logging_info)
-    print(logging_info)
-
-
-def get_human_and_CNN_subjects(subjects):
-    """Split subjects into 2 lists: human, CNNs subjects."""
-
-    assert type(subjects) is list
-    human_subjects = []
-    CNN_subjects = []
-    for s in subjects:
-        if s.startswith("subject-"):
-            human_subjects.append(s)
-        else:
-            CNN_subjects.append(s)
-    return human_subjects, CNN_subjects
-
-
-def get_raw_matrix(dataset,
-                   decision_maker_fun,
-                   analysis,
-                   value="error-consistency"):
-    """Return NxN data frame of error consistencies."""
-
-    df = ph.get_experimental_data(dataset)
-    decision_makers = decision_maker_fun(df)
-    subjects = dm.get_individual_decision_makers(decision_makers)
-
-    num_subjects = len(subjects)
-    matrix = np.ones([num_subjects, num_subjects])
-    for i in tqdm(range(num_subjects)):
-        s1 = subjects[i]
-        df1 = df.loc[(df["subj"] == s1)]
-        for j in range(i, num_subjects):
-            s2 = subjects[j]
-            df2 = df.loc[(df["subj"] == s2)]
-            a = analysis.analysis(df1, df2)[value]
-            matrix[i, j] = a
-            matrix[j, i] = a
-
-    plotting_names = []
-    colors = []
-    for s in subjects:
-        attr = dm.decision_maker_to_attributes(s, decision_makers)
-        if s.startswith("subject-"):
-            plotting_names.append(s)
-        else:
-            plotting_names.append(attr["plotting_name"])
-        if attr["color"] == (230 / 255.0, 230 / 255.0, 230 / 255.0):
-            # supervised models: too bright for error consistency matrices
-            colors.append((150 / 255.0, 150 / 255.0, 150 / 255.0))
-        else:
-            colors.append(attr["color"])
-
-    assert len(colors) == matrix.shape[0] == matrix.shape[1]
-
-    return {"matrix": pd.DataFrame(data=matrix,
-                                   columns=plotting_names,
-                                   index=plotting_names),
-            "colors": colors}
-
-
-def plotting_names_to_data_subjects(plotting_names,
-                                    decision_makers):
-    subjects = []
-    plotting_set = set()
-    for d in decision_makers:
-        if d.plotting_name in plotting_names:
-            subjects += d.decision_makers
-            plotting_set.add(d.plotting_name)
-    missing_subjects = plotting_set.symmetric_difference(set(plotting_names))
-    if len(missing_subjects) > 0:
-        print("Missing subjects: ")
-        print(missing_subjects)
-        raise ValueError("subjects missing")
-    return subjects
-
-
-def get_mean_over_datasets(colname,
-                           metric_fun,
-                           metric_name,
-                           datasets,
-                           decision_maker_fun):
-    """Compute the mean result of metric_fun applied to datasets.
-
-    Returns data frame with columns as follows:
-    <plotting_name> (name of decision maker)
-    <colname> (name of numerical column with metric results)
-    <color> (plotting color)
-    """
-
-    result_df = pd.DataFrame(columns=['model', 'plotting_name', 'dataset', colname, 'color'])
-    for d_orig in datasets:
-        df_raw = ph.get_experimental_data(d_orig)
-        if EXCLUDE:
-            d = exclude_conditions(d_orig)
-        else:
-            d = d_orig
-        for dmaker in decision_maker_fun(df_raw):
-            if len(d.experiments) == 1:
-                df_selection = df_raw.loc[(df_raw["subj"].isin(dmaker.decision_makers)) &
-                                          (df_raw["condition"].isin(d.experiments[0].data_conditions))]
-            elif len(d.experiments) == 0:
-                df_selection = df_raw.loc[(df_raw["subj"].isin(dmaker.decision_makers))]
-            else:
-                raise ValueError("unknown")
-            r1 = metric_fun.analysis(df=df_selection)
-            result_df = result_df.append([{"plotting_name": dmaker.plotting_name,
-                                           "dataset": d.name,
-                                           colname: r1[metric_name],
-                                           "color": dmaker.color}],
-                                         ignore_index=True)
-
-    # average over datasets
-    result_df = result_df.groupby(['plotting_name', 'color'], as_index=False)[colname].mean()
-    return result_df
-
-
-##################################################################
-# Individual plotting methods
-##################################################################
-
-def x_y_plot(figure_path,
-             analysis,
-             decision_makers,
-             experiment,
-             result_df):
+def x_y_plot(figure_path: str,
+             analysis: 'Analysis',
+             decision_makers: List['DecisionMaker'],
+             experiment: 'Experiment',
+             result_df: pd.DataFrame,
+             fontsize: int = 10,
+             show: bool = False):
     """Plot experimental data on an x-y plot."""
 
-    plt.rcParams.update({'font.size': 20})
 
     fig, ax = plt.subplots(figsize=analysis.figsize)
     plt.xlabel(experiment.xlabel)
@@ -378,7 +166,11 @@ def x_y_plot(figure_path,
 
     plt.legend()
     plt.savefig(figure_path)
-    plt.close()
+    plt.savefig(figure_path.replace('.pdf', '.png'))
+    if show or PLT_SHOW:
+        plt.show()
+    else:
+        plt.close()
 
 
 def confusion_matrix_helper(data, output_filename,
@@ -418,6 +210,7 @@ def confusion_matrix_helper(data, output_filename,
         ax.set(xlabel="", ylabel="")
 
     plt.savefig(output_filename, bbox_inches='tight', dpi=300)
+    plt.savefig(output_filename.replace('.pdf', '.png'), bbox_inches='tight', dpi=300)
     plt.close()
     sns.reset_defaults()
     sns.reset_orig()
@@ -426,7 +219,7 @@ def confusion_matrix_helper(data, output_filename,
 
 def plot_shape_bias_matrixplot(datasets,
                                decision_maker_fun,
-                               result_dir,
+                               out_dir,
                                analysis=a.ShapeBias(),
                                order_by='humans'):
     assert len(datasets) == 1
@@ -533,14 +326,15 @@ def plot_shape_bias_matrixplot(datasets,
                    linewidths=PLOTTING_EDGE_WIDTH,
                    zorder=3)
 
-    figure_path = pjoin(result_dir, f"{ds.name}_shape-bias_matrixplot.pdf")
+    figure_path = pjoin(out_dir, f"{ds.name}_shape-bias_matrixplot.pdf")
     fig.savefig(figure_path)
+    fig.savefig(figure_path.replace('.pdf', '.png'))
     plt.close()
 
 
 def plot_shape_bias_boxplot(datasets,
                             decision_maker_fun,
-                            result_dir,
+                            out_dir,
                             analysis=a.ShapeBias(),
                             order_by='humans'):
     assert len(datasets) == 1
@@ -595,21 +389,22 @@ def plot_shape_bias_boxplot(datasets,
         element.set(color=color)
         x_axis.set_color(label_color)
     plt.subplots_adjust(bottom=0.55)
-    figure_path = pjoin(result_dir, f"{ds.name}_shape-bias_boxplot.pdf")
+    figure_path = pjoin(out_dir, f"{ds.name}_shape-bias_boxplot.pdf")
     fig.savefig(figure_path)
+    fig.savefig(figure_path.replace('.pdf', '.png'))
     plt.close()
 
 
-def plot_error_consistency(datasets, decision_maker_fun, result_dir,
+def plot_error_consistency(datasets, decision_maker_fun, out_dir,
                            analysis=a.ErrorConsistency()):
     plot_matrix(datasets=datasets, analysis=analysis,
                 decision_maker_fun=decision_maker_fun,
-                result_dir=result_dir, plot_type="error-consistency")
+                out_dir=out_dir, plot_type="error-consistency")
 
 
 def plot_matrix(datasets, analysis,
                 decision_maker_fun,
-                result_dir, plot_type,
+                out_dir, plot_type,
                 sort_by_mean=False):
     """Plot a matrix of NxN analysis values.
 
@@ -646,9 +441,10 @@ def plot_matrix(datasets, analysis,
         for i, tick_label in enumerate(ax.axes.get_xticklabels()):
             tick_label.set_color(colors[i])
 
-        figure_path = pjoin(result_dir,
+        figure_path = pjoin(out_dir,
                             f"{dataset.name}_{analysis.plotting_name.replace(' ', '-')}_matrix{by_mean_str}.pdf")
         f.savefig(figure_path, bbox_inches='tight', pad_inches=0)
+        f.savefig(figure_path.replace('.pdf', '.png'), bbox_inches='tight', pad_inches=0)
         f.clear()
     plt.cla()
     plt.clf()
@@ -717,7 +513,7 @@ def sort_matrix_by_subjects_mean(result_dict):
 
 def plot_confusion_matrix(datasets,
                           decision_maker_fun,
-                          result_dir,
+                          out_dir,
                           analysis=a.ConfusionAnalysis()):
     analysis = a.ConfusionAnalysis()
     for d in datasets:
@@ -729,7 +525,7 @@ def plot_confusion_matrix(datasets,
         for e in d.experiments:
             for i, cond in enumerate(e.data_conditions):
                 for dmaker in decision_maker_fun(df):
-                    figure_path = pjoin(result_dir,
+                    figure_path = pjoin(out_dir,
                                         f"{analysis.plotting_name.replace(' ', '-')}_{e.name}\
                                         _{dmaker.file_name}_\
                                         {e.plotting_conditions[i]}.pdf")
@@ -740,38 +536,41 @@ def plot_confusion_matrix(datasets,
                                             data=result_df)
 
 
-def plot_accuracy(datasets, decision_maker_fun, result_dir):
+def plot_accuracy(datasets, decision_maker_fun, out_dir):
     plot_general_analyses(datasets=datasets, analysis=a.SixteenClassAccuracy(),
                           decision_maker_fun=decision_maker_fun,
-                          result_dir=result_dir, plot_type="accuracy")
+                          out_dir=out_dir, plot_type="accuracy")
 
 
-def plot_entropy(datasets, decision_maker_fun, result_dir):
+def plot_entropy(datasets, decision_maker_fun, out_dir):
     plot_general_analyses(datasets=datasets, analysis=a.Entropy(),
                           decision_maker_fun=decision_maker_fun,
-                          result_dir=result_dir, plot_type="entropy")
+                          out_dir=out_dir, plot_type="entropy")
 
 
-def plot_error_consistency_lineplot(datasets, decision_maker_fun, result_dir):
+def plot_error_consistency_lineplot(datasets, decision_maker_fun, out_dir):
     plot_general_analyses(datasets=datasets, analysis=a.ErrorConsistency(),
                           decision_maker_fun=decision_maker_fun,
-                          result_dir=result_dir, plot_type="error-consistency-lineplot")
+                          out_dir=out_dir, plot_type="error-consistency-lineplot")
 
 
-def plot_general_analyses(datasets, analysis, decision_maker_fun,
-                          result_dir, plot_type):
+def plot_general_analyses(
+        datasets: List['DatasetExperiments'],
+        analysis: 'Analysis',
+        decision_maker_fun: Callable[[pd.DataFrame], List['DecisionMaker']],
+        out_dir: str,
+        plot_type: str
+):
     for d in datasets:
         log(plot_type=plot_type, dataset_name=d.name)
 
         df = ph.get_experimental_data(d)
-
         for e in d.experiments:
-            figure_path = pjoin(result_dir,
-                                f"{e.name}_{analysis.plotting_name.replace(' ', '-')}.pdf")
+            figure_path = pjoin(
+                out_dir, f"{e.name}_{analysis.plotting_name.replace(' ', '-')}.pdf")
             decision_makers = decision_maker_fun(df)
-            result_df = analysis.get_result_df(df=df,
-                                               decision_makers=decision_makers,
-                                               experiment=e)
+            result_df = analysis.get_result_df(
+                df=df, decision_makers=decision_makers, experiment=e)
 
             x_y_plot(figure_path=figure_path,
                      result_df=result_df,
@@ -939,7 +738,7 @@ def print_benchmark_table_humanlike_to_latex(df):
                           float_format="%.3f", index=False), file=f)
 
 
-def plot_benchmark_barplot(datasets, decision_maker_fun, result_dir):
+def plot_benchmark_barplot(datasets, decision_maker_fun, out_dir):
     include_humans = True
     metric_names = ["accuracy difference",
                     "observed consistency",
@@ -992,7 +791,7 @@ def plot_benchmark_barplot(datasets, decision_maker_fun, result_dir):
         else:
             add_string = "_no-humans"
 
-        barplot(path=pjoin(result_dir, f"benchmark_{metric_name.replace(' ', '-')}{add_string}.pdf"),
+        barplot(path=pjoin(out_dir, f"benchmark_{metric_name.replace(' ', '-')}{add_string}.pdf"),
                 names=names, values=values, colors=colors, ylabel=colname)
 
 
@@ -1070,11 +869,12 @@ def barplot(path, names, values, colors, ylabel=None,
 
     plt.xlim([-0.8, len(names) - 1 + 0.5 * width])
     plt.savefig(path)
+    plt.savefig(path.replace('.pdf', '.png'))
     plt.close()
 
 
 def plot_scatterplot(datasets,
-                     decision_maker_fun, result_dir,
+                     decision_maker_fun, out_dir,
                      metric_x=None, metric_y=None):
     """Plot scatter plot for metric_x vs. metric_y"""
 
@@ -1121,16 +921,16 @@ def plot_scatterplot(datasets,
         dataset_name = "multiple-datasets"
 
     if metric_x and metric_y:
-        scatter_plot_helper(df, metric_x, metric_y, result_dir, dataset_name)
+        scatter_plot_helper(df, metric_x, metric_y, out_dir, dataset_name)
         scatterplot_log(metric_x, metric_y)
     else:
         perm = get_permutations(METRICS.keys())
         for metric_x, metric_y in perm:
-            scatter_plot_helper(df, metric_x, metric_y, result_dir, dataset_name)
+            scatter_plot_helper(df, metric_x, metric_y, out_dir, dataset_name)
             scatterplot_log(metric_x, metric_y)
 
 
-def scatter_plot_helper(df, metric_x, metric_y, result_dir, dataset_name):
+def scatter_plot_helper(df, metric_x, metric_y, out_dir, dataset_name):
     fig, ax = plt.subplots(figsize=(5, 5))
     for s in ["right", "top"]:
         ax.spines[s].set_visible(False)
@@ -1170,6 +970,6 @@ def scatter_plot_helper(df, metric_x, metric_y, result_dir, dataset_name):
         plt.plot(l1, l2, linestyle='dashed', color="gray", linewidth=0.8)
         plt.text(x=x_text, y=0.01, s="expected", color="gray", ha='center')
 
-    plt.savefig(pjoin(result_dir,
-                      f"scatter-plot_{metric_x.replace(' ', '-')}_vs_{metric_y.replace(' ', '-')}_{dataset_name}.pdf"))
+    plt.savefig(pjoin(out_dir, f"scatter-plot_{metric_x.replace(' ', '-')}_vs_{metric_y.replace(' ', '-')}_{dataset_name}.pdf"))
+    plt.savefig(pjoin(out_dir, f"scatter-plot_{metric_x.replace(' ', '-')}_vs_{metric_y.replace(' ', '-')}_{dataset_name}.png"))
     plt.close()

@@ -65,7 +65,7 @@ class PyContrastPytorchModel(PytorchModel):
     """
 
     def __init__(self, model, classifier, model_name, *args):
-        super(PyContrastPytorchModel, self).__init__(model, model_name, args)
+        super().__init__(model, model_name, args)
         self.classifier = classifier
         self.classifier.to(device())
 
@@ -82,7 +82,7 @@ class ViTPytorchModel(PytorchModel):
 
     def __init__(self, model, model_name, img_size=(384, 384), *args):
         self.img_size = img_size
-        super(ViTPytorchModel, self).__init__(model, model_name, args)
+        super().__init__(model, model_name, args)
 
     def forward_batch(self, images):
         assert type(images) is torch.Tensor
@@ -109,8 +109,9 @@ class ViTPytorchModel(PytorchModel):
 class ClipPytorchModel(PytorchModel):
 
     def __init__(self, model, model_name, *args):
-        super(ClipPytorchModel, self).__init__(model, model_name, *args)
-        self.zeroshot_weights=self._get_zeroshot_weights(imagenet_classes, imagenet_templates)
+        super().__init__(model, model_name, *args)
+        self.zeroshot_weights = self._get_zeroshot_weights(
+            imagenet_classes, imagenet_templates)
         
     def _get_zeroshot_weights(self, class_names, templates):
         with torch.no_grad():
@@ -140,12 +141,13 @@ class ClipPytorchModel(PytorchModel):
         assert type(images) is torch.Tensor
 
         images = undo_default_preprocessing(images)
-        images = [self.preprocess()(ToPILImage()(image)) for image in images]
+        transform = self.preprocess(self.model.visual.input_resolution)
+        images = [transform(ToPILImage()(image)) for image in images]
         images = torch.Tensor(np.stack(images, axis=0))
 
         self.model.eval()
         
-        image_features = self.model.encode_image(images)
+        image_features = self.model.encode_image(images.to(device()))
         image_features /= image_features.norm(dim=-1, keepdim=True)
         logits = 100. * image_features @ self.zeroshot_weights
         return self.to_numpy(logits)
@@ -154,7 +156,7 @@ class ClipPytorchModel(PytorchModel):
 class EfficientNetPytorchModel(PytorchModel):
 
     def __init__(self, model, model_name, *args):
-        super(EfficientNetPytorchModel, self).__init__(model, model_name, *args)
+        super().__init__(model, model_name, *args)
 
     def preprocess(self):
         normalize = Normalize(mean=[0.485, 0.456, 0.406],
@@ -184,7 +186,7 @@ class EfficientNetPytorchModel(PytorchModel):
 class SwagPytorchModel(PytorchModel):
 
     def __init__(self, model, model_name, input_size, *args):
-        super(SwagPytorchModel, self).__init__(model, model_name, *args)
+        super().__init__(model, model_name, *args)
         self.input_size = input_size
 
     def preprocess(self):

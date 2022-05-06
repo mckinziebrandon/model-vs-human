@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 
 from .. import constants as c
-from  ..helper import human_categories as hc
+from ..helper import human_categories as hc
 from . import decision_makers as dm
 
 
@@ -43,36 +43,32 @@ class Analysis(ABC):
 
 
 class ConfusionAnalysis(Analysis):
-
     num_input_models = 1
 
     def __init__(self):
         super().__init__()
         self.plotting_name = "confusion-matrix"
 
-
     def analysis(self, df,
                  categories=hc.get_human_object_recognition_categories(),
                  include_NA=True):
-
         df = deepcopy(df)
 
         c = categories
         if include_NA:
-            c = ["na"]+c
+            c = ["na"] + c
         df['object_response'] = pd.Categorical(df.object_response,
                                                categories=c)
 
         confusion_matrix = pd.crosstab(df['object_response'], df['category'],
                                        dropna=False)
 
-        confusion_matrix = 100.0*confusion_matrix.astype('float') / confusion_matrix.sum(axis=0)[np.newaxis, :]
+        confusion_matrix = 100.0 * confusion_matrix.astype(
+            'float') / confusion_matrix.sum(axis=0)[np.newaxis, :]
         return confusion_matrix
-
 
     def get_result_df():
         pass
-
 
 
 class ShapeBias(Analysis):
@@ -85,9 +81,7 @@ class ShapeBias(Analysis):
         super().__init__()
         self.plotting_name = "shape-bias"
 
-
     def analysis(self, df):
-
         self._check_dataframe(df)
 
         df = df.copy()
@@ -96,19 +90,20 @@ class ShapeBias(Analysis):
 
         # remove those rows where shape = texture, i.e. no cue conflict present
         df2 = df.loc[df.correct_shape != df.correct_texture]
-        fraction_correct_shape = len(df2.loc[df2.object_response == df2.correct_shape]) / len(df)
-        fraction_correct_texture = len(df2.loc[df2.object_response == df2.correct_texture]) / len(df)
-        shape_bias = fraction_correct_shape / (fraction_correct_shape + fraction_correct_texture)
+        fraction_correct_shape = len(
+            df2.loc[df2.object_response == df2.correct_shape]) / len(df)
+        fraction_correct_texture = len(
+            df2.loc[df2.object_response == df2.correct_texture]) / len(df)
+        shape_bias = fraction_correct_shape / (
+                    fraction_correct_shape + fraction_correct_texture)
 
         result_dict = {"fraction-correct-shape": fraction_correct_shape,
                        "fraction-correct-texture": fraction_correct_texture,
                        "shape-bias": shape_bias}
         return result_dict
 
-
     def get_result_df(self):
         pass
-
 
     def get_texture_category(self, imagename):
         """Return texture category from imagename.
@@ -143,7 +138,6 @@ class ErrorConsistency(Analysis):
         self.height_line_for_chance = 0.0
         self.figsize = (8.8, 7.14)
 
-
     def error_consistency(self, expected_consistency, observed_consistency):
         """Return error consistency as measured by Cohen's kappa."""
 
@@ -155,8 +149,8 @@ class ErrorConsistency(Analysis):
         if observed_consistency == 1.0:
             return 1.0
         else:
-            return (observed_consistency - expected_consistency) / (1.0 - expected_consistency)
-
+            return (observed_consistency - expected_consistency) / (
+                        1.0 - expected_consistency)
 
     def analysis(self, df1, df2):
         """Return error consistency"""
@@ -183,24 +177,24 @@ class ErrorConsistency(Analysis):
         df2["is_correct"] = df2.object_response == df2.category
         observed_consistency = (df1.is_correct == df2.is_correct).sum() / len(df1)
 
-        error_consistency = self.error_consistency(expected_consistency=expected_consistency,
-                                                   observed_consistency=observed_consistency)
+        error_consistency = self.error_consistency(
+            expected_consistency=expected_consistency,
+            observed_consistency=observed_consistency)
 
         return {"expected-consistency": expected_consistency,
                 "observed-consistency": observed_consistency,
-                "error-consistency":    error_consistency}
+                "error-consistency": error_consistency}
 
-
-    def get_result_df(self, df, decision_makers, experiment, column="error-consistency"):
+    def get_result_df(self, df, decision_makers, experiment,
+                      column="error-consistency"):
         """Return mean consistency between decision_makers and human observers."""
 
         result_df = pd.DataFrame(columns=['subj', 'condition',
                                           'yvalue', 'decision-maker-ID',
                                           'colour'])
 
-
         humans, models = dm.get_human_and_model_decision_makers(decision_makers)
-        assert len(humans) > 0, "Error consistency between humans and models can "+ \
+        assert len(humans) > 0, "Error consistency between humans and models can " + \
                                 "only be computed if human observers are included " + \
                                 "as decision makers."
 
@@ -208,12 +202,11 @@ class ErrorConsistency(Analysis):
             values = []
             for h in humans:
                 if dm1 != h:
-                    df1 = df.loc[(df["condition"]==condition) & (df["subj"]==dm1)]
-                    df2 = df.loc[(df["condition"]==condition) & (df["subj"]==h)]
+                    df1 = df.loc[(df["condition"] == condition) & (df["subj"] == dm1)]
+                    df2 = df.loc[(df["condition"] == condition) & (df["subj"] == h)]
                     r = self.analysis(df1, df2)
                     values.append(r["error-consistency"])
             return np.mean(values)
-
 
         for c in experiment.data_conditions:
             for m in models:
@@ -223,8 +216,8 @@ class ErrorConsistency(Analysis):
                                               'condition': c,
                                               'yvalue': yvalue,
                                               'decision-maker-ID': attr["ID"]},
-                                              ignore_index=True)
- 
+                                             ignore_index=True)
+
             hvalues = []
             for h in humans:
                 hvalues.append(get_result(result_df, df, h, condition=c))
@@ -232,9 +225,9 @@ class ErrorConsistency(Analysis):
             attr = dm.decision_maker_to_attributes(h, decision_makers)
             result_df = result_df.append({'subj': attr["plotting_name"],
                                           'condition': c,
-                                              'yvalue': np.mean(hvalues),
-                                              'decision-maker-ID': attr["ID"]},
-                                              ignore_index=True)
+                                          'yvalue': np.mean(hvalues),
+                                          'decision-maker-ID': attr["ID"]},
+                                         ignore_index=True)
 
         return result_df
 
@@ -250,14 +243,21 @@ class XYAnalysis(Analysis):
 
         for d in decision_makers:
             for c in experiment.data_conditions:
-                subdat = df.loc[(df["condition"]==c) & (df["subj"].isin(d.decision_makers))]
+                subdat = df.loc[
+                    (df["condition"] == c) & (df["subj"].isin(d.decision_makers))]
+                if len(subdat) == 0:
+                    print(f'[{self.__class__.__name__}] '
+                          f'WARNING: skipping supdat since length=0, '
+                          f'for decision_maker={d} and data_condition={c}.')
                 r = self.analysis(subdat)
-                assert len(r) == 1, "Analysis unexpectedly returned more than one scalar."
-                result_df = result_df.append({'subj': d.plotting_name,
-                                              'condition': c,
-                                              'yvalue': list(r.values())[0],
-                                              'decision-maker-ID': d.ID},
-                                              ignore_index=True)
+                assert len(r) == 1, \
+                    "Analysis unexpectedly returned more than one scalar."
+                result_df = result_df.append({
+                    'subj': d.plotting_name,
+                    'condition': c,
+                    'yvalue': list(r.values())[0],
+                    'decision-maker-ID': d.ID
+                }, ignore_index=True)
 
         return result_df
 
@@ -277,10 +277,8 @@ class SixteenClassAccuracy(XYAnalysis):
         self.ylim = (0, 1)
         self.height_line_for_chance = 1 / self.NUM_CATEGORIES
 
-
     def analysis(self, df):
         """Return accuracy of responses."""
-
         self._check_dataframe(df)
         accuracy = len(df.loc[df.object_response == df.category]) / len(df)
         result_dict = {"16-class-accuracy": accuracy}
@@ -298,7 +296,6 @@ class SixteenClassAccuracyDifference(XYAnalysis):
         self.ylabel = "Classification accuracy difference"
         self.plotting_name = "accuracy-difference"
         self.ylim = (0, 1)
-
 
     def analysis(self, df1, df2, norm=np.square):
         """Return accuracy of responses."""
@@ -326,7 +323,6 @@ class Entropy(XYAnalysis):
         self.ylim = (0, np.log2(num_categories))
         self.height_line_for_chance = np.log2(num_categories)
 
-
     def analysis(self, df):
         """Return response distribution entropy."""
 
@@ -335,7 +331,8 @@ class Entropy(XYAnalysis):
         entropy_per_subj = []
         for subj in df["subj"].unique():
 
-            response_probabilities = get_percent_answers_per_category(df.loc[df["subj"]==subj])
+            response_probabilities = get_percent_answers_per_category(
+                df.loc[df["subj"] == subj])
 
             entropy = 0.0
             for p in response_probabilities:
