@@ -93,12 +93,15 @@ DECISION_MAKERS = {
 }
 
 
-def brandon_plotting_definition(df):
-    decision_makers = []
-    for dm in DECISION_MAKERS.values():
-        decision_makers.append(dm(df))
-    decision_makers.append(DecisionMaker(
-        name_pattern="subject-*",
-        color=rgb(165, 30, 55), marker="D", df=df,
-        plotting_name="humans"))
-    return decision_makers
+def make_brandon_plotting_definition(model_names):
+    def brandon_plotting_definition(df):
+        dms = {
+            name: DECISION_MAKERS[name](df)
+            for name in model_names
+        }
+        dms.append(DecisionMaker(
+            name_pattern="subject-*",
+            color=rgb(165, 30, 55), marker="D", df=df,
+            plotting_name="humans"))
+        return dms
+    return brandon_plotting_definition
