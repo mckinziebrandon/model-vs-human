@@ -27,7 +27,7 @@ DECISION_MAKERS = {
         plotting_name="SIML CLIP"),
     'siml_clip_pruned': lambda df: DecisionMaker(
         name_pattern="siml_clip_pruned",
-        color=rgb(65, 90, 140), marker="o", df=df,
+        color=rgb(65, 90, 140), marker=SHAPES['diamond'], df=df,
         plotting_name="SIML CLIP Pruned"),
     'clip_base': lambda df: DecisionMaker(
         name_pattern="clip_base",
