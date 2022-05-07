@@ -94,10 +94,10 @@ DECISION_MAKERS = {
 
 def make_brandon_plotting_definition(model_names):
     def brandon_plotting_definition(df):
-        dms = {
-            name: DECISION_MAKERS[name](df)
+        dms = [
+            DECISION_MAKERS[name](df)
             for name in model_names
-        }
+        ]
         dms.append(DecisionMaker(
             name_pattern="subject-*",
             color=rgb(165, 30, 55), marker="D", df=df,
