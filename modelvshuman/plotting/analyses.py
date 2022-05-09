@@ -157,7 +157,7 @@ class ErrorConsistency(Analysis):
 
         self._check_dataframe(df1)
         self._check_dataframe(df2)
-        assert len(df1) == len(df2)
+        assert len(df1) == len(df2), f'{len(df1)} != {len(df2)}'
 
         num_trials = len(df1)
         p1 = SixteenClassAccuracy().analysis(df1)["16-class-accuracy"]
