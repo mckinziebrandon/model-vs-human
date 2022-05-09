@@ -99,7 +99,7 @@ def make_brandon_plotting_definition(model_names, extra_decision_makers=None):
             for name in model_names
         ]
         if extra_decision_makers is not None:
-            dms.extend(extra_decision_makers(df))
+            dms.extend([dm(df) for dm in extra_decision_makers])
         dms.append(DecisionMaker(
             name_pattern="subject-*",
             color=rgb(165, 30, 55), marker="D", df=df,
