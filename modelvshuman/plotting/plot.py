@@ -167,7 +167,9 @@ def x_y_plot(figure_path: str,
         y_vals = analysis.height_line_for_chance + 0 * x_vals
         plt.plot(x_vals, y_vals, ':', color="grey")
 
-    plt.legend()
+    # plt.legend()
+    # put legend on right side of plot
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     plt.savefig(figure_path)
     plt.savefig(figure_path.replace('.pdf', '.png'))
     if show or PLT_SHOW:
