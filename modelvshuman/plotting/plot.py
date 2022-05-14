@@ -142,8 +142,6 @@ def x_y_plot(figure_path: str,
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
 
-    if os.getenv('DO_IT'):
-        os.environ['result_df'] = result_df
     for ID in result_df["decision-maker-ID"].unique():
         decision_maker = None
         for d in decision_makers:
@@ -152,12 +150,10 @@ def x_y_plot(figure_path: str,
                 break
         assert decision_maker is not None, "no matching decision maker found"
         result_list = result_df.loc[result_df["decision-maker-ID"] == ID]["yvalue"]
-        if os.getenv('DO_IT'):
-            x=experiment.plotting_conditions
-            y=results_list
-            print(f"x={x}, y={y}, len(x)={len(x)}, len(y)={len(y)}")
 
-            print('x:', experiment.plotting_conditions, result_list)
+        x=experiment.plotting_conditions
+        y=results_list
+        print(f"x={x}, y={y}, len(x)={len(x)}, len(y)={len(y)}")
         plt.plot(
             experiment.plotting_conditions,
             result_list,
