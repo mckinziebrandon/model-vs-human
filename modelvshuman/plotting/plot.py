@@ -151,8 +151,8 @@ def x_y_plot(figure_path: str,
         assert decision_maker is not None, "no matching decision maker found"
         result_list = result_df.loc[result_df["decision-maker-ID"] == ID]["yvalue"]
 
-        x=experiment.plotting_conditions
-        y=results_list
+        x= experiment.plotting_conditions
+        y= result_list
         print(f"x={x}, y={y}, len(x)={len(x)}, len(y)={len(y)}")
         plt.plot(
             experiment.plotting_conditions,
