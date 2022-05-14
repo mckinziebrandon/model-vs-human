@@ -157,8 +157,8 @@ def x_y_plot(figure_path: str,
             print(f'ok rly len(y)={len(y)} != len(x)={len(x)}')
             y = result_list[-len(x):] # ok rly
         plt.plot(
-            experiment.plotting_conditions,
-            result_list,
+            x, #experiment.plotting_conditions,
+            y, #result_list,
             marker=decision_maker.marker,
             color=decision_maker.color,
             markersize=12,
