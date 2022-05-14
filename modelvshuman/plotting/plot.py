@@ -152,6 +152,7 @@ def x_y_plot(figure_path: str,
         result_list = result_df.loc[result_df["decision-maker-ID"] == ID]["yvalue"]
 
         x= experiment.plotting_conditions
+        y = result_list
         if len(y) != len(x):
             print(f'ok rly len(y)={len(y)} != len(x)={len(x)}')
             y = result_list[-len(x):] # ok rly
