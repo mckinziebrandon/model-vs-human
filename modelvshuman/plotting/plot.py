@@ -133,8 +133,6 @@ def x_y_plot(figure_path: str,
              fontsize: int = 10,
              show: bool = False):
     """Plot experimental data on an x-y plot."""
-
-
     fig, ax = plt.subplots(figsize=analysis.figsize)
     plt.xlabel(experiment.xlabel)
     plt.ylabel(analysis.ylabel)
@@ -144,6 +142,8 @@ def x_y_plot(figure_path: str,
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
 
+    if os.getenv('DO_IT'):
+        os.environ['result_df'] = result_df
     for ID in result_df["decision-maker-ID"].unique():
         decision_maker = None
         for d in decision_makers:
@@ -152,12 +152,22 @@ def x_y_plot(figure_path: str,
                 break
         assert decision_maker is not None, "no matching decision maker found"
         result_list = result_df.loc[result_df["decision-maker-ID"] == ID]["yvalue"]
-        plt.plot(experiment.plotting_conditions, result_list,
-                 marker=decision_maker.marker, color=decision_maker.color,
-                 markersize=12, linewidth=1,
-                 markeredgecolor=PLOTTING_EDGE_COLOR,
-                 markeredgewidth=PLOTTING_EDGE_WIDTH,
-                 label=decision_maker.plotting_name)
+        if os.getenv('DO_IT'):
+            x=experiment.plotting_conditions
+            y=results_list
+            print(f"x={x}, y={y}, len(x)={len(x)}, len(y)={len(y)}")
+
+            print('x:', experiment.plotting_conditions, result_list)
+        plt.plot(
+            experiment.plotting_conditions,
+            result_list,
+            marker=decision_maker.marker,
+            color=decision_maker.color,
+            markersize=12,
+            linewidth=1,
+            markeredgecolor=PLOTTING_EDGE_COLOR,
+            markeredgewidth=PLOTTING_EDGE_WIDTH,
+            label=decision_maker.plotting_name)
 
     if analysis.height_line_for_chance is not None:
         axes = plt.gca()
