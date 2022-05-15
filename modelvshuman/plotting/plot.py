@@ -170,8 +170,8 @@ def x_y_plot(figure_path: str,
     # plt.legend()
     # put legend on right side of plot
     plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    plt.savefig(figure_path)
-    plt.savefig(figure_path.replace('.pdf', '.png'))
+    plt.savefig(figure_path, bbox_inches='tight')
+    plt.savefig(figure_path.replace('.pdf', '.png'), bbox_inches='tight')
     if show or PLT_SHOW:
         plt.show()
     else:
@@ -332,8 +332,8 @@ def plot_shape_bias_matrixplot(datasets,
                    zorder=3)
 
     figure_path = pjoin(out_dir, f"{ds.name}_shape-bias_matrixplot.pdf")
-    fig.savefig(figure_path)
-    fig.savefig(figure_path.replace('.pdf', '.png'))
+    fig.savefig(figure_path, bbox_inches='tight')
+    fig.savefig(figure_path.replace('.pdf', '.png'), bbox_inches='tight')
     plt.close()
 
 
@@ -395,8 +395,8 @@ def plot_shape_bias_boxplot(datasets,
         x_axis.set_color(label_color)
     plt.subplots_adjust(bottom=0.55)
     figure_path = pjoin(out_dir, f"{ds.name}_shape-bias_boxplot.pdf")
-    fig.savefig(figure_path)
-    fig.savefig(figure_path.replace('.pdf', '.png'))
+    fig.savefig(figure_path, bbox_inches='tight')
+    fig.savefig(figure_path.replace('.pdf', '.png'), bbox_inches='tight')
     plt.close()
 
 
@@ -873,8 +873,8 @@ def barplot(path, names, values, colors, ylabel=None,
                  va='bottom', rotation=90)
 
     plt.xlim([-0.8, len(names) - 1 + 0.5 * width])
-    plt.savefig(path)
-    plt.savefig(path.replace('.pdf', '.png'))
+    plt.savefig(path, bbox_inches='tight')
+    plt.savefig(path.replace('.pdf', '.png'), bbox_inches='tight')
     plt.close()
 
 
