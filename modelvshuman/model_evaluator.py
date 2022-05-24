@@ -147,7 +147,11 @@ class ModelEvaluator:
         _datasets = self._get_datasets(dataset_names, *args, **kwargs)
         for model_name in models:
             datasets = _datasets
-            model, framework = load_model(model_name, *args)
+            if 'prompts' in kwargs:  # TODO: remove hardcode, this is annoying
+                prompts = kwargs.pop('prompts')
+                model, framework = load_model(model_name, *args, prompts=prompts)
+            else:
+                model, framework = load_model(model_name, *args)
             evaluator = self._get_evaluator(framework)
             if framework == 'tensorflow':
                 datasets = self._to_tensorflow(datasets)

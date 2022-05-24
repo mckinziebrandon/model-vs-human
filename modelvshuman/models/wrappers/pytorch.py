@@ -192,8 +192,8 @@ class BaseCLIPWrapper(PytorchModel):
             self,
             model: nn.Module,
             model_name: str,
+            *args,
             prompts: List[str] = imagenet_templates,
-            *args
     ):
         super().__init__(model, model_name, *args)
         self.prompts = prompts
@@ -219,8 +219,14 @@ class BaseCLIPWrapper(PytorchModel):
 
 class OpenAIClipPytorchModelWrapper(BaseCLIPWrapper):
 
-    def __init__(self, model, model_name, prompts, *args):
-        super().__init__(model, model_name, prompts, *args)
+    def __init__(
+            self,
+            model,
+            model_name,
+            *args,
+            prompts: List[str] = imagenet_templates,
+    ):
+        super().__init__(model, model_name, *args, prompts=prompts)
 
     @torch.no_grad()
     def encode_text_batch(self, text_batch: List[str]) -> torch.Tensor:
@@ -257,8 +263,14 @@ class OpenAIClipPytorchModelWrapper(BaseCLIPWrapper):
 
 class SIMLClipPytorchModelWrapper(BaseCLIPWrapper):
 
-    def __init__(self, wrapper, model_name, prompts, *args):
-        super().__init__(wrapper.model, model_name, prompts, *args)
+    def __init__(
+            self,
+            wrapper,
+            model_name,
+            *args,
+            prompts: List[str] = imagenet_templates,
+    ):
+        super().__init__(wrapper.model, model_name, *args, prompts=prompts)
         self.wrapper = wrapper
 
     @torch.no_grad()
@@ -292,8 +304,8 @@ class CybertronClipPytorchModelWrapper(BaseCLIPWrapper):
             self,
             checkpoint_path: str,
             model_name: str,
+            *args,
             prompts: List[str] = imagenet_templates,
-            *args
     ):
         from cybertron.images.clip.datasets import CLIPDataCollator
         from cybertron.data.checkpoint import call_with_checkpoint_config, \
@@ -312,7 +324,7 @@ class CybertronClipPytorchModelWrapper(BaseCLIPWrapper):
             suppress_gin_bindings=[
                 'default_image_transform_pipeline.eval_mode = False'],
             add_gin_bindings=['default_image_transform_pipeline.eval_mode = True'])
-        super().__init__(model, model_name, prompts, *args)
+        super().__init__(model, model_name, *args, prompts=prompts)
 
     @torch.no_grad()
     def encode_text_batch(self, text_batch: List[str]) -> torch.Tensor:

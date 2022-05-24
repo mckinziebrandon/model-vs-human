@@ -2,8 +2,17 @@
 import torch
 
 from ..registry import register_model
-from ..wrappers.pytorch import PytorchModel, PyContrastPytorchModel, ClipPytorchModel, \
-    ViTPytorchModel, EfficientNetPytorchModel, SwagPytorchModel
+from ..wrappers.pytorch import (
+    PytorchModel,
+    PyContrastPytorchModel,
+    ViTPytorchModel,
+    EfficientNetPytorchModel,
+    SwagPytorchModel,
+    OpenAIClipPytorchModelWrapper,
+    SIMLClipPytorchModelWrapper,
+    CybertronClipPytorchModelWrapper,
+)
+from .clip_models import *
 
 _PYTORCH_IMAGE_MODELS = "rwightman/pytorch-image-models"
 
@@ -480,35 +489,6 @@ def selecsls60b(model_name, *args):
                            model_name,
                            pretrained=True)
     return PytorchModel(model, model_name, *args)
-
-
-@register_model("pytorch")
-def clip_base(model_name, *args):
-    import clip
-    model, _ = clip.load("ViT-B/32")
-    return ClipPytorchModel(model, model_name, *args)
-
-
-@register_model("pytorch")
-def clip_large(model_name, *args):
-    import clip
-    model, _ = clip.load("ViT-L/14")
-    return ClipPytorchModel(model, model_name, *args)
-
-
-@register_model("pytorch")
-def clip_large_336(model_name, *args):
-    import clip
-    model, _ = clip.load("ViT-L/14@336px")
-    return ClipPytorchModel(model, model_name, *args)
-
-
-@register_model("pytorch")
-def clipRN50(model_name, *args):
-    import clip
-    model, _ = clip.load("RN50")
-    return ClipPytorchModel(model, model_name, *args)
-
 
 @register_model("pytorch")
 def resnet50_swsl(model_name, *args):

@@ -61,15 +61,15 @@ def no_op():
     assert pytorch_model_zoo
 
 
-def load_model(model_name, *args):
+def load_model(model_name, *args, **kwargs):
     if model_name in zoomodels.__dict__:
-        model = eval("pytorch_model_zoo.model_pytorch")(model_name, *args)
+        model = eval("pytorch_model_zoo.model_pytorch")(model_name, *args, **kwargs)
         framework = 'pytorch'
     elif model_name in list_models("pytorch"):
-        model = eval(f"pytorch_model_zoo.{model_name}")(model_name, *args)
+        model = eval(f"pytorch_model_zoo.{model_name}")(model_name, *args, **kwargs)
         framework = 'pytorch'
     elif model_name in list_models('tensorflow'):
-        model = eval(f"tensorflow_model_zoo.{model_name}")(model_name, *args)
+        model = eval(f"tensorflow_model_zoo.{model_name}")(model_name, *args, **kwargs)
         framework = 'tensorflow'
     else:
         raise NameError(f"Model {model_name} is not supported.")
