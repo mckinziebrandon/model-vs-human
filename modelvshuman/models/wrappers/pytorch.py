@@ -1,3 +1,10 @@
+import torch.nn as nn
+# Disable warnings to prevent cybertron from logging a ton of them.
+import logging
+logging.disable(logging.WARNING)
+logger = logging.getLogger('modelvshuman')
+
+from typing import List
 import math
 import PIL
 import clip
@@ -57,6 +64,9 @@ class PytorchModel(AbstractModel):
         logits = self.model(images)
         return self.to_numpy(logits)
 
+    def count_parameters(self) -> int:
+        return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+
 
 class PyContrastPytorchModel(PytorchModel):
     """
@@ -105,52 +115,6 @@ class ViTPytorchModel(PytorchModel):
             Normalize(0.5, 0.5),
         ])
 
-
-class ClipPytorchModel(PytorchModel):
-
-    def __init__(self, model, model_name, *args):
-        super().__init__(model, model_name, *args)
-        self.zeroshot_weights = self._get_zeroshot_weights(
-            imagenet_classes, imagenet_templates)
-        
-    def _get_zeroshot_weights(self, class_names, templates):
-        with torch.no_grad():
-            zeroshot_weights = []
-            for class_name in tqdm(class_names):
-                texts = [template.format(class_name) for template in templates]  # format with class
-                texts = clip.tokenize(texts).to(device())  # tokenize
-                class_embeddings = self.model.encode_text(texts)  # embed with text encoder
-                class_embeddings /= class_embeddings.norm(dim=-1, keepdim=True)
-                class_embedding = class_embeddings.mean(dim=0)
-                class_embedding /= class_embedding.norm()
-                zeroshot_weights.append(class_embedding)
-            zeroshot_weights = torch.stack(zeroshot_weights, dim=1).to(device())
-
-        return zeroshot_weights
-
-    def preprocess(self, n_px=224):
-        return Compose([
-            Resize(n_px, interpolation=PIL.Image.BICUBIC),
-            CenterCrop(n_px),
-            # lambda image: image.convert("RGB"),
-            ToTensor(),
-            Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
-        ])
-
-    def forward_batch(self, images):
-        assert type(images) is torch.Tensor
-
-        images = undo_default_preprocessing(images)
-        transform = self.preprocess(self.model.visual.input_resolution)
-        images = [transform(ToPILImage()(image)) for image in images]
-        images = torch.Tensor(np.stack(images, axis=0))
-
-        self.model.eval()
-        
-        image_features = self.model.encode_image(images.to(device()))
-        image_features /= image_features.norm(dim=-1, keepdim=True)
-        logits = 100. * image_features @ self.zeroshot_weights
-        return self.to_numpy(logits)
 
 
 class EfficientNetPytorchModel(PytorchModel):
@@ -207,4 +171,174 @@ class SwagPytorchModel(PytorchModel):
         images = [self.preprocess()(ToPILImage()(image)) for image in images]
         images = torch.Tensor(np.stack(images, axis=0)).to(device())
         logits = self.model(images)
-        return self.to_numpy(logits)    
+        return self.to_numpy(logits)
+
+
+class ConvertToRGB:
+    def __call__(self, x):
+        return x.convert("RGB")
+
+
+CYBERTRON_CKPTS = {
+    'ViT-B/16': 's3://cybertron/artifacts/checkpoints/yinfei_yang'
+                '/CLIP_ALIGN_config_all_data_0303/permanent_checkpoint_000600000.pt',
+    'ViT-L/14': 's3://cybertron/artifacts/checkpoints/yinfei_yang/CLIP_large_lr5e'
+                '-4_eps1e-6_0508/permanent_checkpoint_000234000.pt',
+}
+
+
+class BaseCLIPWrapper(PytorchModel):
+    def __init__(
+            self,
+            model: nn.Module,
+            model_name: str,
+            prompts: List[str] = imagenet_templates,
+            *args
+    ):
+        super().__init__(model, model_name, *args)
+        self.prompts = prompts
+        self.zeroshot_weights = self._get_zeroshot_weights(imagenet_classes)
+
+    def encode_text_batch(self, text_batch: List[str]) -> torch.Tensor:
+        """Subclasses must implement."""
+        raise NotImplementedError()
+
+    @torch.no_grad()
+    def _get_zeroshot_weights(self, class_names):
+        zeroshot_weights = []
+        for class_name in tqdm(class_names, desc="class_names"):
+            texts = [
+                prompt.format(class_name) for prompt in self.prompts]
+            class_embeddings = self.encode_text_batch(texts)
+            class_embedding = class_embeddings.mean(dim=0)
+            class_embedding /= class_embedding.norm()
+            zeroshot_weights.append(class_embedding)
+        zeroshot_weights = torch.stack(zeroshot_weights, dim=1).to(device())
+        return zeroshot_weights
+
+
+class OpenAIClipPytorchModelWrapper(BaseCLIPWrapper):
+
+    def __init__(self, model, model_name, prompts, *args):
+        super().__init__(model, model_name, prompts, *args)
+
+    @torch.no_grad()
+    def encode_text_batch(self, text_batch: List[str]) -> torch.Tensor:
+        texts = clip.tokenize(text_batch).to(device())  # tokenize
+        class_embeddings = self.model.encode_text(texts)
+        class_embeddings /= class_embeddings.norm(dim=-1, keepdim=True)
+        return class_embeddings
+
+    def preprocess(self, n_px=224):
+        return Compose([
+            Resize(n_px, interpolation=PIL.Image.BICUBIC),
+            CenterCrop(n_px),
+            # lambda image: image.convert("RGB"),
+            ToTensor(),
+            Normalize((0.48145466, 0.4578275, 0.40821073),
+                      (0.26862954, 0.26130258, 0.27577711)),
+        ])
+
+    def forward_batch(self, images):
+        assert type(images) is torch.Tensor
+
+        images = undo_default_preprocessing(images)
+        transform = self.preprocess(self.model.visual.input_resolution)
+        images = [transform(ToPILImage()(image)) for image in images]
+        images = torch.Tensor(np.stack(images, axis=0))
+
+        self.model.eval()
+
+        image_features = self.model.encode_image(images.to(device()))
+        image_features /= image_features.norm(dim=-1, keepdim=True)
+        logits = 100. * image_features @ self.zeroshot_weights
+        return self.to_numpy(logits)
+
+
+class SIMLClipPytorchModelWrapper(BaseCLIPWrapper):
+
+    def __init__(self, wrapper, model_name, prompts, *args):
+        super().__init__(wrapper.model, model_name, prompts, *args)
+        self.wrapper = wrapper
+
+    @torch.no_grad()
+    def encode_text_batch(self, text_batch: List[str]) -> torch.Tensor:
+        return self.wrapper.encode_text_batch_from_str(text_batch)
+
+    def preprocess(self):
+        return Compose([
+            Resize((self.wrapper.image_size, self.wrapper.image_size),
+                   interpolation=PIL.Image.BILINEAR),
+            ConvertToRGB(),
+            ToTensor(),
+        ])
+
+    def forward_batch(self, images):
+        assert type(images) is torch.Tensor
+
+        images = undo_default_preprocessing(images)
+        images = [self.preprocess()(ToPILImage()(image)) for image in images]
+        images = torch.Tensor(np.stack(images, axis=0))
+        self.model.eval()
+
+        image_features = self.wrapper.encode_image_batch(images.to(device()))
+        logits = 100. * image_features @ self.zeroshot_weights
+        return self.to_numpy(logits)
+
+
+class CybertronClipPytorchModelWrapper(BaseCLIPWrapper):
+
+    def __init__(
+            self,
+            checkpoint_path: str,
+            model_name: str,
+            prompts: List[str] = imagenet_templates,
+            *args
+    ):
+        from cybertron.images.clip.datasets import CLIPDataCollator
+        from cybertron.data.checkpoint import call_with_checkpoint_config, \
+            load_checkpoint
+        # from cybertron import configure_logger
+        # from cybertron import io as cio
+        # logger = logging.getLogger('CLIPViewer')
+        # configure_logger()
+        model = load_checkpoint(
+            path=checkpoint_path,
+            model=None,
+            device='cuda').eval()
+        self.data_collator = call_with_checkpoint_config(
+            CLIPDataCollator,
+            checkpoint_path,
+            suppress_gin_bindings=[
+                'default_image_transform_pipeline.eval_mode = False'],
+            add_gin_bindings=['default_image_transform_pipeline.eval_mode = True'])
+        super().__init__(model, model_name, prompts, *args)
+
+    @torch.no_grad()
+    def encode_text_batch(self, text_batch: List[str]) -> torch.Tensor:
+        collator_inputs = [
+            {'text': t.encode('utf-8')} for t in text_batch]
+        text_inputs = {
+            k: v.to(device()) for k, v in
+            self.data_collator(collator_inputs).items()}
+        return self.model.encode_text(**text_inputs)
+
+    @torch.no_grad()
+    def forward_batch(self, images):
+        assert type(images) is torch.Tensor
+
+        images = undo_default_preprocessing(images)
+        image_tensors = torch.cat([
+            self.data_collator._img_transform(ToPILImage()(im))[None, ...] for im in images
+        ], dim=0)
+        image_masks = torch.cat([
+            torch.ones(1, self.data_collator._grid_size ** 2, dtype=torch.int32) for _ in
+            images
+        ], dim=0)
+        self.model.eval()
+
+        image_features = self.model.encode_image(
+            images=image_tensors.to(device()),
+            image_masks=image_masks.to(device()))
+        logits = 100. * image_features @ self.zeroshot_weights
+        return self.to_numpy(logits)

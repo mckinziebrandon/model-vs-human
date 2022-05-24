@@ -91,6 +91,11 @@ DECISION_MAKERS = {
         plotting_name="BiT-M: ResNet-50x1 (14M)"),
 }
 
+HUMAN_DECISION_MAKER = lambda df: DecisionMaker(
+    name_pattern="subject-*",
+    color=rgb(165, 30, 55), marker="D", df=df,
+    plotting_name="humans")
+
 
 def make_brandon_plotting_definition(model_names, extra_decision_makers=None):
     def brandon_plotting_definition(df):

@@ -7,15 +7,18 @@ from os.path import join as pjoin
 # DIRECTORIES
 ##################################################################
 
-PROJ_DIR = str(os.environ.get("MODELVSHUMANDIR", "model-vs-human"))
-assert (PROJ_DIR != "None"), "Please set the 'MODELVSHUMANDIR' environment variable as described in the README"
-CODE_DIR = pjoin(PROJ_DIR, "modelvshuman")
-DATASET_DIR = pjoin(PROJ_DIR, "datasets")
-FIGURE_DIR = pjoin(PROJ_DIR, "figures")
-RAW_DATA_DIR = pjoin(PROJ_DIR, "raw-data")
+
+def PROJ_DIR():
+    return str(os.environ.get("MODELVSHUMANDIR", "model-vs-human"))
+
+assert (PROJ_DIR() != "None"), "Please set the 'MODELVSHUMANDIR' environment variable as described in the README"
+CODE_DIR = pjoin(PROJ_DIR(), "modelvshuman")
+DATASET_DIR = pjoin(PROJ_DIR(), "datasets")
+FIGURE_DIR = pjoin(PROJ_DIR(), "figures")
+RAW_DATA_DIR = pjoin(PROJ_DIR(), "raw-data")
 PERFORMANCES_DIR = pjoin(RAW_DATA_DIR, "performances")
-REPORT_DIR = pjoin(PROJ_DIR, "latex-report/")
-ASSETS_DIR = pjoin(PROJ_DIR, "assets/")
+REPORT_DIR = pjoin(PROJ_DIR(), "latex-report/")
+ASSETS_DIR = pjoin(PROJ_DIR(), "assets/")
 ICONS_DIR = pjoin(ASSETS_DIR, "icons/")
 
 ##################################################################

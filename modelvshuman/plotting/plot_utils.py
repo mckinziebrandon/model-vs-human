@@ -78,7 +78,11 @@ def get_dataset_names(plot_type):
             dataset_names.append(candidate)
 
     if len(dataset_names) == 0:
-        raise ValueError("No data found for the specified plot_types.")
+        raise ValueError(
+            f"No data found for the specified plot_type={plot_type}. "
+            f"Searched in consts.RAW_DATA_DIR={consts.RAW_DATA_DIR}, "
+            f"for all dataset_candidates={dataset_candidates}"
+        )
 
     return dataset_names
 
